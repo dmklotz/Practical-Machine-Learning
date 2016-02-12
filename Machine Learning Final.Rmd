@@ -1,0 +1,50 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "David Klotz"
+date: "February 11, 2016"
+output: html_document
+---
+
+Let us begin...
+
+```{r}
+library(caret)
+data <- read.csv("/users/davidklotz/pml-training.csv")
+```
+
+After loading the data and taking the summary, one notices there are many columns with 19216 NA's or blank values.  These all relate to the variable "new_window" answered negatively.  We won't display the full summary here (there are 160 columns!) but since there are only 19622 observations, these columns must be removed before proceeding with any Machine Learning algorithm.  I don't know an elegant way to do this, so I created a short program to identify all the column numbers:
+
+```{r}
+i = 1
+beGone <- vector()
+while (i <= 160){
+  if (sum(is.na(data[,i])) == 19216 | sum(data[,i] == "") == 19216){
+    beGone <- c(beGone, i)
+  }
+  i = i+1
+}
+cleanData <- data[,-beGone]
+```
+
+This removes 100 columns, none of which would have been helpful.  In addition, I remove seemingly irrelevant variables such as the row numbers, time stamps, and "new_window".
+
+```{r}
+cleanData <- cleanData[,-c(1, 3:6)]
+```
+
+Now we finally have the data limited to the truly diagnostic factors.  With this smaller dataframe, we run through the normal steps to find a machine learning model.  To maximize accuracy, I chose the generalized boosting model, even though it is very slow with the size of our data. 
+
+```{r}
+inTrain <- createDataPartition(cleanData$classe, p = 0.7, list = FALSE)
+training <- cleanData[inTrain,]
+testing <- cleanData[-inTrain,]
+modFit <- train(classe ~., method="gbm", data = training, verbose=FALSE)
+```
+
+Finally, we use this model to calculate predictions on the testing set.  Looking at the confusion matrix, we can see this model performs very well.
+
+```{r}
+pred <- predict(modFit, testing)
+confusionMatrix(pred, testing$classe)
+```
+
